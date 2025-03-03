@@ -1,3 +1,4 @@
+#importing libraries
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -9,12 +10,15 @@ from selenium.common.exceptions import TimeoutException
 import time
 import classify
 
+
 # Initialize WebDriver
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+
 
 # Navigate to LinkedIn Learning
 driver.get("https://www.linkedin.com/learning/")
 time.sleep(2)
+
 
 # Click "Sign In" if present
 try:
@@ -24,6 +28,7 @@ try:
     time.sleep(1)
 except:
     print("Sign in button not found, proceeding...")
+
 
 # Log in
 try:
@@ -41,6 +46,7 @@ except:
     print("Login failed.")
     driver.quit()
     exit()
+
 
 # Navigate to "My Library"
 try:
@@ -78,6 +84,22 @@ except:
     print(f"Course '{desired_course}' not found.")
 
 
+# Click the cross button for the ai bot
+try:
+    # Wait for the button to appear
+    close_button = WebDriverWait(driver, 5).until(
+        EC.presence_of_element_located(
+            (By.CLASS_NAME, "coach-panel__header-close")
+        )
+    )
+    
+    # Click the button using JavaScript to avoid click interception issues
+    driver.execute_script("arguments[0].click();", close_button)
+    
+    print("✅ Cross button detected and clicked.")
+    
+except TimeoutException:
+    print("❌ Cross button not found.")
 
 ##function to detect the status
 def traverse_contents(driver):
