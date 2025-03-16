@@ -101,73 +101,93 @@ try:
 except TimeoutException:
     print("❌ Cross button not found.")
 
-##function to detect the status
-def traverse_contents(driver):
+# Function to detect and handle the sidebar
+def open_contents_panel(driver):
+    """Ensure the contents sidebar is open."""
     try:
-        # Ensure the contents bar is open
-        sidebar_class = "slide-out-panel slide-out-panel--right slide-out-panel--open classroom-layout__sidebar hue-web-color-scheme--dark"
         sidebar = driver.find_element(By.CLASS_NAME, "classroom-layout__sidebar")
+        if "slide-out-panel--open" not in sidebar.get_attribute("class"):
+            menu_button = driver.find_element(By.CLASS_NAME, "classroom-toc__toggle")
+            menu_button.click()
+            print("📂 Contents panel opened.")
+            time.sleep(2)
+    except NoSuchElementException:
+        print("⚠️ Could not find contents panel button.")
 
-        if sidebar.get_attribute("class") != sidebar_class:
-            print("📌 Sidebar is closed. Opening contents panel...")
-            open_contents_panel(driver)  #  Function to open the panel
+# Function to classify content (Video or Quiz)
+def content_Classifier(driver):
+    """Classifies content as a video or a quiz."""
+    try:
+        # Check for video element
+        video_element = driver.find_element(By.TAG_NAME, "video")
+        if video_element.is_displayed():
+            print("🎬 Content is a Video. Playing now...")
+            time.sleep(5)  # Simulating video play time
+            return "video"
 
-        # Wait for contents to load
+        # Check for quiz elements
+        quiz_element = driver.find_element(By.CLASS_NAME, "quiz-container")  # Adjust class name if needed
+        if quiz_element.is_displayed():
+            print("📝 Content is a Quiz. Attempting now...")
+            return "quiz"
+
+    except NoSuchElementException:
+        print("⚠️ Unable to classify content.")
+        return "unknown"
+
+# Function to traverse contents
+def traverse_contents(driver):
+    """Traverse the course content list, skipping completed items and processing the rest."""
+    try:
+        # Ensure sidebar is open
+        open_contents_panel(driver)
+
+        # Wait for content list to load
         WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.CLASS_NAME, "classroom-toc-item__viewing-status"))
+            EC.presence_of_all_elements_located((By.CLASS_NAME, "classroom-toc-item"))
         )
 
-        # Get all content items
-        content_items = driver.find_elements(By.CLASS_NAME, "classroom-toc-item__viewing-status")
+        # Fetch all content items
+        content_items = driver.find_elements(By.CLASS_NAME, "classroom-toc-item")
         completed_items = driver.find_elements(By.CLASS_NAME, "classroom-toc-item__completed-icon")
-        in_progress_items = driver.find_elements(By.CLASS_NAME, "classroom-toc-item__viewing-status--in-progress")
 
-        total_items = len(content_items) + len(completed_items) + len(in_progress_items)
-        print(f"📜 Total Contents: {total_items}")
+        print(f"📜 Total Contents: {len(content_items)}")
 
-        for index, item in enumerate(content_items + in_progress_items):
+        for index, item in enumerate(content_items):
             try:
+                # Check if the item is completed
+                if item in completed_items:
+                    print(f"✅ Content {index + 1} is already completed. Skipping...")
+                    continue
+
                 # Scroll into view to ensure visibility
                 driver.execute_script("arguments[0].scrollIntoView();", item)
-                time.sleep(1)  # Small delay to allow UI to adjust
+                time.sleep(1)
 
                 # Click on the item
                 item.click()
                 print(f"▶️ Starting Content {index + 1}...")
 
-                # Call the detection function
-                detection(driver)
+                # Classify and process content
+                classification = content_Classifier(driver)
 
-                # Recursively call traverse_contents() after finishing
-                traverse_contents(driver)
-                return  # Exit current recursion and continue
+                # Add logic based on classification (e.g., handle quizzes)
+                if classification == "quiz":
+                    print("📝 Handling Quiz... (Add quiz-handling logic here)")
+                elif classification == "video":
+                    print("🎬 Watching video...")
+
+                time.sleep(2)  # Simulate processing delay
 
             except Exception as e:
                 print(f"⚠️ Error processing content {index + 1}: {e}")
 
-        # If all items are completed, exit recursion
-        print("✅ All contents are completed!")
+        print("✅ Finished processing all contents.")
 
     except Exception as e:
         print("⚠️ Error in traversing contents:", e)
 
-def open_contents_panel(driver):
-    try:
-        # Locate and click the button to open the panel (adjust selector if needed)
-        menu_button = driver.find_element(By.CLASS_NAME, "classroom-toc__toggle")
-        menu_button.click()
-        print("📂 Contents panel opened.")
-        time.sleep(2)  # Wait for the panel to open
-    except Exception as e:
-        print("⚠️ Could not open contents panel:", e)
-
-# Example function for detection (To be implemented as per requirement)
-def detection(driver):
-    print("🔍 Running detection function...")
-    time.sleep(3)  # Simulating detection process
-    print("✔️ Detection completed.")
-
-
+# Run the traversal function
 traverse_contents(driver)
 
 input("Press ENTER to exit the page...")
