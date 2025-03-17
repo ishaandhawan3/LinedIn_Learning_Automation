@@ -1,30 +1,41 @@
-import main
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import NoSuchElementException
+import time
 
-def classify_content(driver):
-    """
-    Function to detect if the current content is a video or a quiz.
-    If it's a video, it redirects to the 'video_function'.
-    If it's a quiz, it redirects to the 'quiz' function.
-    """
+from video import handle_video  # Import video handling function
+from quiz import handle_quiz  # Import quiz handling function
+
+def content_Classifier(driver):
+    """Classifies the content as either a video or a quiz and calls the respective function."""
     try:
-        # Wait for the content page to load
-        time.sleep(2)
+        time.sleep(2)  # Allow content to load properly
+        
+        # Check if a video player is present
+        try:
+            video_player = driver.find_element(By.CLASS_NAME, "vjs-tech")  # Video player class
+            if video_player.is_displayed():
+                print("🎥 Video detected. Calling handle_video()...")
+                handle_video(driver)
+                return  # Exit after handling video
+        except NoSuchElementException:
+            pass  # No video player found, continue checking for quiz
 
-        # Check if the content is a video by detecting the video player
-        video_player = driver.find_elements(By.CLASS_NAME, "vjs-tech")
-        if video_player:
-            print("🎥 Detected Video: Redirecting to video_function...")
-            video_function(driver)
-            return
+        # Check if a quiz is present
+        try:
+            quiz_elements = [
+                driver.find_element(By.CLASS_NAME, "quiz-submit-button"),  # Submit button
+                driver.find_element(By.CLASS_NAME, "chapter-quiz-header"),  # Quiz header
+                driver.find_element(By.CLASS_NAME, "quiz-question")  # Question element
+            ]
+            
+            if any(element.is_displayed() for element in quiz_elements):
+                print("📝 Quiz detected. Calling handle_quiz()...")
+                handle_quiz(driver)
+                return  # Exit after handling quiz
+        except NoSuchElementException:
+            pass  # No quiz elements found
 
-        # Check if the content is a quiz by detecting the quiz heading
-        quiz_header = driver.find_elements(By.CLASS_NAME, "chapter-quiz-question__header")
-        if quiz_header:
-            print("📝 Detected Quiz: Redirecting to quiz function...")
-            quiz(driver)
-            return
+        print("⚠️ Unknown content type. Skipping...")
 
-        print("❌ Could not classify content. Skipping to next item.")
-    
     except Exception as e:
-        print(f"⚠️ Error in classification: {e}")
+        print(f"⚠️ Error in content classification: {e}")

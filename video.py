@@ -1,33 +1,39 @@
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import NoSuchElementException
+import time
 
-def set_playback_speed(driver, speed="2x"):
+from main import traverse_contents  # Import the traversal function
+
+def handle_video(driver):
+    """Handles video playback by setting speed to 2x and waiting for completion."""
     try:
-        # Wait for and click the playback speed button
-        playback_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CLASS_NAME, "vjs-playback-rate"))
-        )
-        playback_button.click()
-        time.sleep(1)  # Give time for the menu to open
+        time.sleep(2)  # Wait for page elements to load
 
-        # Ensure the menu is open using JavaScript
-        driver.execute_script("document.querySelector('.vjs-playback-rate .vjs-menu').style.display = 'block';")
+        # Find the video player
+        try:
+            video_element = driver.find_element(By.CLASS_NAME, "vjs-tech")  # Video element
+            driver.execute_script("arguments[0].playbackRate = 2;", video_element)  # Set speed to 2x
+            print("🎥 Video playback speed set to 2x.")
 
-        # Find all speed options
-        speed_options = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.XPATH, "//ul[@class='vjs-menu-content']//li"))
-        )
+        except NoSuchElementException:
+            print("⚠️ Video player not found!")
+            return  # Exit if no video found
 
-        # Click on the desired speed option
-        for item in speed_options:
-            if speed in item.text:
-                driver.execute_script("arguments[0].click();", item)  # Use JS click to avoid interception
-                print(f"✅ Playback speed set to {speed}.")
-                return True
-        print(f"⚠️ Playback speed '{speed}' not found.")
-        return False
+        # Wait for video to finish playing
+        while True:
+            try:
+                # Check if the video is still playing
+                is_playing = driver.execute_script("return !arguments[0].paused && !arguments[0].ended;", video_element)
+                if not is_playing:
+                    print("✅ Video completed.")
+                    break  # Exit loop if video has ended
+            except:
+                break  # Handle unexpected errors in script execution
 
-    except TimeoutException:
-        print("❌ Could not find playback speed options.")
-        return False
+            time.sleep(5)  # Check every 5 seconds
+
+        print("🔄 Returning to content traversal...")
+        traverse_contents(driver)  # Call traversal function again after video completion
+
     except Exception as e:
-        print("⚠️ Error setting playback speed:", e)
-        return False
+        print(f"⚠️ Error in handle_video: {e}")
