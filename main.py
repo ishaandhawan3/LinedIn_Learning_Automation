@@ -8,7 +8,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import time
-import classify
+from classify import content_Classifier  # Import classification function
+from video import handle_video  # Import video handling function
+from quiz import handle_quiz  # Import quiz handling function
+
 
 
 # Initialize WebDriver
