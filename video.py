@@ -2,8 +2,6 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 import time
 
-from main import traverse_contents  # Import the traversal function
-
 def handle_video(driver):
     """Handles video playback by setting speed to 2x and waiting for completion."""
     try:
@@ -33,6 +31,8 @@ def handle_video(driver):
             time.sleep(5)  # Check every 5 seconds
 
         print("🔄 Returning to content traversal...")
+        # Import traverse_contents here to avoid circular imports
+        from main import traverse_contents
         traverse_contents(driver)  # Call traversal function again after video completion
 
     except Exception as e:

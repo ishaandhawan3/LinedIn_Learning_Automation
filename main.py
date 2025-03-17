@@ -6,9 +6,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
-from classify import content_Classifier  # Import classification function
 
 
 # Initialize WebDriver
@@ -100,6 +99,10 @@ try:
     
 except TimeoutException:
     print("❌ Cross button not found.")
+
+
+# Import here to avoid circular imports
+from classify import content_Classifier
 
 # Function to detect and handle the sidebar
 def traverse_contents(driver):

@@ -2,8 +2,9 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 import time
 
-from video import handle_video  # Import video handling function
-from quiz import handle_quiz  # Import quiz handling function
+# Import handlers but not from main to avoid circular imports
+from video import handle_video
+from quiz import handle_quiz
 
 def content_Classifier(driver):
     """Classifies the content as either a video or a quiz and calls the respective function."""
