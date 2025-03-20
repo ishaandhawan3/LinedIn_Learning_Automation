@@ -1,18 +1,25 @@
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
+import time
+from main import traverse_contents
+
 def handle_video(driver):
-    """Handles video playback by setting speed to 2x and waiting for completion."""
     try:
-        time.sleep(2)  # Wait for page elements to load
+        # Wait for video element with refresh handling
+        video_element = WebDriverWait(driver, 15).until(
+            lambda d: d.find_element(By.CLASS_NAME, "vjs-tech")
+        )
+        
+        # Set playback speed
+        driver.execute_script("""
+            arguments[0].playbackRate = 2;
+            arguments[0].dispatchEvent(new Event('ratechange'));
+        """, video_element)
+        print("⏩ 2x playback enabled")
 
-        # Find the video player
-        try:
-            video_element = driver.find_element(By.CLASS_NAME, "vjs-tech")
-            driver.execute_script("arguments[0].playbackRate = 2;", video_element)
-            print("🎥 Video playback speed set to 2x.")
-        except NoSuchElementException:
-            print("⚠️ Video player not found!")
-            return
-
-        # Wait for video completion
+        # Monitor playback with stale element handling
         while True:
             try:
                 is_playing = driver.execute_script(
@@ -20,15 +27,16 @@ def handle_video(driver):
                     video_element
                 )
                 if not is_playing:
-                    print("✅ Video completed.")
+                    print("✅ Video completed")
                     break
-            except:
-                break
+            except StaleElementReferenceException:
+                print("🔄 Refreshing video reference...")
+                video_element = driver.find_element(By.CLASS_NAME, "vjs-tech")
+                
             time.sleep(5)
 
-        print("🔄 Returning to content traversal...")
-        # Directly call traverse_contents without reimporting
+        print("🔄 Restarting traversal...")
         traverse_contents(driver)
 
     except Exception as e:
-        print(f"⚠️ Error in handle_video: {e}")
+        print(f"📹 Video error: {str(e)[:100]}...")
