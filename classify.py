@@ -2,41 +2,37 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 import time
 
-# Import handlers but not from main to avoid circular imports
-from video import handle_video
-from quiz import handle_quiz
-
 def content_Classifier(driver):
-    """Classifies the content as either a video or a quiz and calls the respective function."""
+    """Classifies content type"""
+    from video import handle_video  # Local import to break circular dependency
+    
     try:
-        time.sleep(2)  # Allow content to load properly
+        time.sleep(2)
         
-        # Check if a video player is present
+        # Video check
         try:
-            video_player = driver.find_element(By.CLASS_NAME, "vjs-tech")  # Video player class
+            video_player = driver.find_element(By.CLASS_NAME, "vjs-tech")
             if video_player.is_displayed():
-                print("🎥 Video detected. Calling handle_video()...")
+                print("🎥 Video detected")
                 handle_video(driver)
-                return  # Exit after handling video
+                return
         except NoSuchElementException:
-            pass  # No video player found, continue checking for quiz
+            pass
 
-        # Check if a quiz is present
+        # Quiz check
         try:
-            quiz_elements = [
-                driver.find_element(By.CLASS_NAME, "quiz-submit-button"),  # Submit button
-                driver.find_element(By.CLASS_NAME, "chapter-quiz-header"),  # Quiz header
-                driver.find_element(By.CLASS_NAME, "quiz-question")  # Question element
-            ]
-            
+            quiz_elements = driver.find_elements(
+                By.CSS_SELECTOR, 
+                ".quiz-submit-button, .chapter-quiz-header, .quiz-question"
+            )
             if any(element.is_displayed() for element in quiz_elements):
-                print("📝 Quiz detected. Calling handle_quiz()...")
-                handle_quiz(driver)
-                return  # Exit after handling quiz
+                print("📝 Quiz detected")
+                # handle_quiz(driver)  # Uncomment when implemented
+                return
         except NoSuchElementException:
-            pass  # No quiz elements found
+            pass
 
-        print("⚠️ Unknown content type. Skipping...")
+        print("⚠️ Unknown content type")
 
     except Exception as e:
-        print(f"⚠️ Error in content classification: {e}")
+        print(f"🔍 Classification error: {str(e)[:100]}...")

@@ -10,25 +10,11 @@ from selenium.common.exceptions import (TimeoutException,
                                        StaleElementReferenceException)
 import time
 import sys
-from classify import content_Classifier
-
-def safe_click(driver, locator, timeout=10):
-    """Handles stale elements by retrying clicks with fresh element references"""
-    attempts = 0
-    while attempts < 3:
-        try:
-            element = WebDriverWait(driver, timeout).until(
-                EC.element_to_be_clickable(locator)
-            )
-            element.click()
-            return True
-        except StaleElementReferenceException:
-            attempts += 1
-            time.sleep(1)
-    return False
 
 def traverse_contents(driver):
     """Recursively processes course content with stale element handling"""
+    from classify import content_Classifier  # Local import to break circular dependency
+    
     try:
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CLASS_NAME, "classroom-toc-item"))
@@ -43,7 +29,7 @@ def traverse_contents(driver):
         
         for index in range(len(content_items)):
             try:
-                # Re-fetch elements each iteration to avoid staleness
+                # Re-fetch elements each iteration
                 item = driver.find_elements(By.CLASS_NAME, "classroom-toc-item")[index]
                 
                 if item.find_elements(By.CLASS_NAME, "classroom-toc-item__completed-icon"):
@@ -59,11 +45,9 @@ def traverse_contents(driver):
                     print("⏳ Content in progress/not attempted.")
                     all_completed = False
                     
-                    # Use JavaScript click to avoid element detachment issues
                     driver.execute_script("arguments[0].click();", item)
                     time.sleep(2)
                     
-                    # Refresh element reference after click
                     WebDriverWait(driver, 15).until(
                         EC.staleness_of(item)
                     )
@@ -91,14 +75,19 @@ if __name__ == "__main__":
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
         driver.implicitly_wait(5)
         
-        # Login flow with stale element handling
+        # Login flow
         driver.get("https://www.linkedin.com/learning/")
         
-        # Sign-in process
-        if not safe_click(driver, (By.LINK_TEXT, "Sign in")):
-            print("⚠️ Sign-in button not found or clickable")
-        
-        # Credential handling
+        # Sign-in
+        try:
+            WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.LINK_TEXT, "Sign in"))
+            ).click()
+            print("Clicked sign-in")
+        except:
+            print("Sign-in button not found")
+
+        # Credentials
         try:
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.ID, "auth-id-input"))
@@ -112,16 +101,21 @@ if __name__ == "__main__":
             print(f"🔒 Login failed: {str(e)[:100]}...")
             sys.exit(1)
 
-        # Navigation with stale element protection
-        if not safe_click(driver, (By.LINK_TEXT, "My Library")):
-            print("📚 Could not access library")
-            sys.exit(1)
+        # Navigation
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.LINK_TEXT, "My Library"))
+            ).click()
             
-        if not safe_click(driver, (By.PARTIAL_LINK_TEXT, "Saved")):
-            print("💾 Could not access saved courses")
+            WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Saved"))
+            ).click()
+            print("📚 Opened saved courses")
+        except Exception as e:
+            print(f"🧭 Navigation failed: {str(e)[:100]}...")
             sys.exit(1)
 
-        # Course selection with refreshed elements
+        # Course selection
         desired_course = input("Enter course name: ").strip().lower()
         try:
             course_locator = (By.XPATH, "//h3 | //span[contains(@class, 'base-card__title')]")
@@ -145,7 +139,7 @@ if __name__ == "__main__":
             print(f"📚 Course error: {str(e)[:100]}...")
             sys.exit(1)
 
-        # AI panel handling
+        # AI panel
         try:
             close_btn = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.CLASS_NAME, "coach-panel__header-close"))
@@ -155,7 +149,7 @@ if __name__ == "__main__":
         except TimeoutException:
             print("⚠️ No AI panel found")
 
-        # Start content processing
+        # Start processing
         traverse_contents(driver)
 
     except Exception as e:
