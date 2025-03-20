@@ -8,103 +8,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
-
-
-# Initialize WebDriver
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-
-
-# Navigate to LinkedIn Learning
-driver.get("https://www.linkedin.com/learning/")
-time.sleep(2)
-
-
-# Click "Sign In" if present
-try:
-    sign_in_button = driver.find_element(By.LINK_TEXT, "Sign in")
-    sign_in_button.click()
-    print("Clicked 'Sign in'.")
-    time.sleep(1)
-except:
-    print("Sign in button not found, proceeding...")
-
-
-# Log in
-try:
-    email_field = driver.find_element(By.ID, "auth-id-input")
-    email_field.send_keys("23bcs12220@cuchd.in")  # Replace with actual email
-    email_field.send_keys(Keys.RETURN)
-    time.sleep(1)
-
-    password_field = driver.find_element(By.NAME, "session_password")
-    password_field.send_keys("Bharat@0930")  # Replace with actual password
-    password_field.send_keys(Keys.RETURN)
-    print("Login successful!")
-    time.sleep(2)
-except:
-    print("Login failed.")
-    driver.quit()
-    exit()
-
-
-# Navigate to "My Library"
-try:
-    library_button = driver.find_element(By.LINK_TEXT, "My Library")
-    library_button.click()
-    print("Navigated to My Library.")
-    time.sleep(2)
-except:
-    print("Could not find 'My Library' button.")
-
-try:
-    saved_button = driver.find_element(By.PARTIAL_LINK_TEXT, "Saved")
-    saved_button.click()
-    print("Navigated to Saved courses.")
-    time.sleep(2)
-except:
-    print("Could not find 'Saved' section.")
-
-# Ask for the course name
-desired_course = input("Enter the course name you want to open: ").strip().lower()
-
-# Wait for courses to load and select the desired course
-try:
-    WebDriverWait(driver, 10).until(
-        EC.presence_of_all_elements_located((By.XPATH, "//h3 | //span[contains(@class, 'base-card__title')]"))
-    )
-    course_elements = driver.find_elements(By.XPATH, "//h3 | //span[contains(@class, 'base-card__title')]")
-
-    for course in course_elements:
-        if desired_course in course.text.strip().lower():
-            course.click()
-            print(f"Opened course: {course.text}")
-            break
-except:
-    print(f"Course '{desired_course}' not found.")
-
-
-# Click the cross button for the ai bot
-try:
-    # Wait for the button to appear
-    close_button = WebDriverWait(driver, 5).until(
-        EC.presence_of_element_located(
-            (By.CLASS_NAME, "coach-panel__header-close")
-        )
-    )
-    
-    # Click the button using JavaScript to avoid click interception issues
-    driver.execute_script("arguments[0].click();", close_button)
-    
-    print("✅ Cross button detected and clicked.")
-    
-except TimeoutException:
-    print("❌ Cross button not found.")
-
-
-# Import here to avoid circular imports
 from classify import content_Classifier
 
-# Function to detect and handle the sidebar
+# Define traverse_contents first to avoid import issues
 def traverse_contents(driver):
     """Recursively traverses the contents bar, checks status, and processes incomplete content."""
     try:
@@ -116,49 +22,115 @@ def traverse_contents(driver):
             print("⚠️ No contents found!")
             return
 
-        all_completed = True  # Flag to check if the entire course is complete
+        all_completed = True  # Flag to check if entire course is complete
 
         for content in content_items:
             try:
                 # Check if content is completed
                 if content.find_elements(By.CLASS_NAME, "classroom-toc-item__completed-icon"):
-                    print("✔️ Content is already completed. Skipping...")
-                    continue  # Skip to the next content
+                    print("✔️ Content already completed. Skipping...")
+                    continue
 
                 # Check if content is in progress or not attempted
                 elif content.find_elements(By.CLASS_NAME, "classroom-toc-item__viewing-status--in-progress") or \
                      content.find_elements(By.CLASS_NAME, "classroom-toc-item__viewing-status"):
-                    print("⏳ Content is in progress or not attempted. Classifying content...")
-                    all_completed = False  # Set flag to False since at least one content is incomplete
+                    print("⏳ Content in progress/not attempted. Classifying...")
+                    all_completed = False
 
-                    # Click on the content to open it
+                    # Click and process content
                     content.click()
-                    time.sleep(3)  # Allow page to load
-
-                    # Call the classification function
+                    time.sleep(3)
                     content_Classifier(driver)
-                    return  # Stop loop execution as function will restart traverse_contents after processing
+                    return  # Restart traversal after processing
 
             except NoSuchElementException:
-                print("⚠️ Could not check status for a content item.")
+                print("⚠️ Couldn't check content status")
                 continue
 
-        # If all contents are completed
         if all_completed:
-            print("🎉🎉🎉 Congratulationsssss! Your course is now complete. 🎉🎉🎉")
+            print("🎉🎉🎉 Course complete! 🎉🎉🎉")
             return
 
-        # Recursively call traverse_contents to keep checking
-        print("🔄 Checking for remaining contents...")
+        print("🔄 Checking remaining contents...")
         traverse_contents(driver)
 
     except Exception as e:
-        print(f"⚠️ Error in traverse_contents: {e}")
+        print(f"⚠️ Traversal error: {e}")
 
-# Run the traversal function
-traverse_contents(driver)
+if __name__ == "__main__":
+    # Single driver instance for entire session
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+    
+    try:
+        # Login flow
+        driver.get("https://www.linkedin.com/learning/")
+        time.sleep(2)
 
-input("Press ENTER to exit the page...")
+        # Handle sign-in
+        try:
+            driver.find_element(By.LINK_TEXT, "Sign in").click()
+            print("Clicked sign-in")
+            time.sleep(1)
+        except:
+            print("Sign-in button not found")
 
-# Close the browser
-driver.quit()
+        # Credential handling
+        try:
+            email_field = driver.find_element(By.ID, "auth-id-input")
+            email_field.send_keys("23bcs12220@cuchd.in" + Keys.RETURN)
+            time.sleep(1)
+
+            password_field = driver.find_element(By.NAME, "session_password")
+            password_field.send_keys("Bharat@0930" + Keys.RETURN)
+            print("Login successful!")
+            time.sleep(2)
+        except:
+            print("Login failed")
+            driver.quit()
+            exit()
+
+        # Course navigation
+        try:
+            driver.find_element(By.LINK_TEXT, "My Library").click()
+            print("Opened library")
+            time.sleep(2)
+            driver.find_element(By.PARTIAL_LINK_TEXT, "Saved").click()
+            print("Opened saved courses")
+            time.sleep(2)
+        except:
+            print("Navigation failed")
+            driver.quit()
+            exit()
+
+        # Course selection
+        desired_course = input("Enter course name: ").strip().lower()
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.XPATH, "//h3 | //span[contains(@class, 'base-card__title')]"))
+            )
+            for course in driver.find_elements(By.XPATH, "//h3 | //span[contains(@class, 'base-card__title')]"):
+                if desired_course in course.text.strip().lower():
+                    course.click()
+                    print(f"Opened: {course.text}")
+                    break
+        except:
+            print(f"Course '{desired_course}' not found")
+            driver.quit()
+            exit()
+
+        # Close AI bot
+        try:
+            close_btn = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CLASS_NAME, "coach-panel__header-close"))
+            )
+            driver.execute_script("arguments[0].click();", close_btn)
+            print("✅ Closed AI panel")
+        except TimeoutException:
+            print("❌ No AI panel found")
+
+        # Start content processing
+        traverse_contents(driver)
+
+    finally:
+        input("Press ENTER to exit...")
+        driver.quit()
