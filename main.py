@@ -81,71 +81,60 @@ def find_course_with_scrolling(driver, course_name):
     
     return None
 
-def traverse_contents(driver):
-    """Handles content traversal with stale element protection"""
+def traverse_contents(driver, attempt=0):
+    """Improved content traversal with proper continuation"""
     from classify import content_Classifier
     
     try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "classroom-toc-item"))
+        # Prevent infinite recursion
+        if attempt > 10:
+            print("⚠️ Maximum traversal attempts reached")
+            return
+
+        # Refresh TOC items reference
+        toc_container = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".classroom-toc-container"))
         )
+        content_items = toc_container.find_elements(By.CLASS_NAME, "classroom-toc-item")
         
-        # Refresh element list each iteration
-        content_items = driver.find_elements(By.CLASS_NAME, "classroom-toc-item")
         if not content_items:
             print("⚠️ No contents found!")
             return
 
-        all_completed = True
-        
-        for index in range(len(content_items)):
-            try:
-                # Get fresh reference each time
-                item = driver.find_elements(By.CLASS_NAME, "classroom-toc-item")[index]
-                
-                # Check completion status
-                if item.find_elements(By.CLASS_NAME, "classroom-toc-item__completed-icon"):
-                    print("✔️ Content completed")
-                    continue
+        # Track current active item
+        active_index = -1
+        for idx, item in enumerate(content_items):
+            if "classroom-toc-item--is-active" in item.get_attribute("class"):
+                active_index = idx
+                break
 
-                # Check content status
-                status_selectors = [
-                    ".classroom-toc-item__viewing-status--in-progress",
-                    ".classroom-toc-item__viewing-status"
-                ]
-                status_elements = item.find_elements(By.CSS_SELECTOR, ", ".join(status_selectors))
-                
-                if status_elements:
-                    print("⏳ Processing incomplete content")
-                    all_completed = False
-                    
-                    # Use JS click to avoid element detachment
+        # Find next incomplete item
+        for idx in range(active_index + 1, len(content_items)):
+            item = content_items[idx]
+            try:
+                if not item.find_elements(By.CLASS_NAME, "classroom-toc-item__completed-icon"):
+                    print(f"⏳ Processing item {idx+1}/{len(content_items)}")
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});", item)
                     driver.execute_script("arguments[0].click();", item)
-                    time.sleep(2)
                     
-                    # Wait for DOM update
-                    try:
-                        WebDriverWait(driver, 15).until(
-                            EC.staleness_of(item)
-                        )
-                    except:
-                        pass  # Continue even if element doesn't become stale
-                    
+                    # Wait for content load
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, ".classroom-layout__content"))
+                    )
                     content_Classifier(driver)
                     return
+            except StaleElementReferenceException:
+                print("🔄 TOC updated, restarting traversal")
+                return traverse_contents(driver, attempt + 1)
+            except Exception as e:
+                print(f"⚠️ Item error: {str(e)[:50]}...")
 
-            except (NoSuchElementException, StaleElementReferenceException):
-                continue
-
-        if all_completed:
-            print("🎉 Course complete!")
-            return
-
-        print("🔄 Checking remaining content...")
-        traverse_contents(driver)
-
+        print("🎉 All content items completed!")
+        
     except Exception as e:
         print(f"⚠️ Traversal error: {str(e)[:100]}")
+        if attempt < 3:
+            traverse_contents(driver, attempt + 1)
 
 if __name__ == "__main__":
     driver = None
