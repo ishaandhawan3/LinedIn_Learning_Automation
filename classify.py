@@ -3,28 +3,27 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import time
+from main import traverse_contents
 
-def content_Classifier(driver):
-    """Classifies content type and handles navigation"""
+def content_Classifier(driver, current_index):
+    """Classifies content and skips to next if completed"""
     from video import handle_video
-    from main import traverse_contents
     
     try:
-        # Check if we're viewing completed content first
+        # Immediate check for completed content
         if is_content_completed(driver):
-            print("🚫 Content already completed, returning to TOC...")
-            # Find next incomplete item directly without page refresh
-            find_and_click_next_incomplete_item(driver)
+            print("⏩ Content already completed, skipping...")
+            traverse_contents(driver, current_index + 1)
             return
 
-        # Video detection
+        # Video detection and handling
         try:
-            video_player = WebDriverWait(driver, 5).until(
+            video_element = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, ".vjs-tech, video"))
             )
-            if video_player.is_displayed():
+            if video_element.is_displayed():
                 print("🎥 Video detected")
-                handle_video(driver)
+                handle_video(driver, current_index)
                 return
         except (NoSuchElementException, TimeoutException):
             pass
@@ -32,20 +31,15 @@ def content_Classifier(driver):
         # Quiz detection
         if detect_quiz(driver):
             print("📝 Quiz detected")
-            # handle_quiz(driver)
+            # handle_quiz(driver, current_index)
             return
 
-        print("⚠️ Unknown content type, finding next content")
-        find_and_click_next_incomplete_item(driver)
+        print("⚠️ Unknown content type, proceeding to next")
+        traverse_contents(driver, current_index + 1)
 
     except Exception as e:
         print(f"🔍 Classification error: {str(e)[:100]}...")
-        try:
-            find_and_click_next_incomplete_item(driver)
-        except:
-            # Last resort if we can't find next item
-            navigate_back_to_course(driver)
-            traverse_contents(driver)
+        traverse_contents(driver, current_index + 1)
 
 def is_content_completed(driver):
     """Check if current content is marked as completed"""
@@ -189,5 +183,17 @@ def detect_quiz(driver):
             if elements and any(elem.is_displayed() for elem in elements):
                 return True
         return False
+    except:
+        return False
+
+def is_content_completed(driver):
+    """Checks multiple completion indicators"""
+    try:
+        completion_indicators = [
+            ".content-completed-badge",
+            ".classroom-toc-item__completed-icon",
+            ".progress-bar-completed"
+        ]
+        return any(driver.find_elements(By.CSS_SELECTOR, selector) for selector in completion_indicators)
     except:
         return False

@@ -4,13 +4,14 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
 import time
 
-def handle_video(driver):
-    """Video handler with reliable completion detection"""
-    from classify import find_and_click_next_incomplete_item
+def handle_video(driver, current_index):
+    """Handles video playback and skips to next content"""
+    from main import traverse_contents
     
     try:
-        video_element = WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".vjs-tech, video"))
+        # Get video element
+        video_element = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".vjs-tech"))
         )
         
         # Check if already completed
@@ -21,26 +22,27 @@ def handle_video(driver):
         """, video_element)
         
         if progress > 95:
-            print(f"⏩ Skipping already watched video ({progress}%)")
-            find_and_click_next_incomplete_item(driver)
+            print(f"⏩ Skipping near-complete video ({progress}%)")
+            traverse_contents(driver, current_index + 1)
             return
 
-        # Set playback
+        # Set playback speed
         driver.execute_script("arguments[0].playbackRate = 2;", video_element)
         print("⏩ 2x playback enabled")
 
-        # Monitor playback
+        # Wait for completion
         WebDriverWait(driver, 600).until(
             lambda d: d.execute_script("return arguments[0].ended", video_element)
         )
         print("✅ Video completed")
         
-        # Auto-continue to next
-        find_and_click_next_incomplete_item(driver)
+        # Move to next content
+        traverse_contents(driver, current_index + 1)
 
     except Exception as e:
-        print(f"📹 Playback error: {str(e)[:100]}...")
-        find_and_click_next_incomplete_item(driver)
+        print(f"📹 Video error: {str(e)[:100]}...")
+        traverse_contents(driver, current_index + 1)
+
 
 
 def get_video_progress(driver, video_element):
